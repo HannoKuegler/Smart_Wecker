@@ -9,11 +9,13 @@
 
   void getTime();
   void getTemp();
+  boolean summertime_EU(int year, byte month, byte day, byte hour, byte tzHours);
 
   DS3231 Clock;
   bool Century = false;
   bool h12;
   bool PM;
+  boolean isSummer = true;
   short jahr, monat, tag, stunden, minuten, sekunden;
   long temperatur; 
 
@@ -133,7 +135,7 @@ void getTime() {
 
   switch (stateTime) {
   case 0:
-
+    
     nTtE = millis() + wait;
     stateTime = 1;
     break;
@@ -158,7 +160,17 @@ void getTime() {
       //Serial.print('\n');
       //Serial.print("Uhrzeit: ");
 
-      stunden = Clock.getHour(h12, PM);
+    //Check Summer Time
+      if(stunden>2 && stunden < 3){        
+        isSummer = summertime_EU(jahr, monat, tag, Clock.getHour(h12, PM), 1);
+      }
+
+
+      if(isSummer){
+        stunden = Clock.getHour(h12, PM) + 1; 
+      }else{
+        stunden = Clock.getHour(h12, PM);
+      }
       //if (stunden < 10)
         //Serial.print('0');
       //Serial.print(stunden, DEC);
@@ -189,13 +201,36 @@ void getTime() {
 
 }
 
+unsigned long nTtEPrintEach;
+int waitPrint = 2;
+int statePrint = 0; 
+
 void printTime() {
 
 
   time = (stunden * 100) + minuten;
-  Serial.println(time);
-  sevseg.setNumber(time, 2);
+  sevseg.setNumber(time,2);
+
   //sevseg.refreshDisplay();
 
 
+}
+
+
+
+
+
+// Sommerzeit rechnen
+//-------- utility code from jurs ----------
+boolean summertime_EU(int year, byte month, byte day, byte hour, byte tzHours)
+// European Daylight Savings Time calculation by "jurs" for German Arduino Forum
+// input parameters: "normal time" for year, month, day, hour and tzHours (0=UTC, 1=MEZ)
+// return value: returns true during Daylight Saving Time, false otherwise
+{
+  if (month < 3 || month > 10) return false; // keine Sommerzeit in Jan, Feb, Nov, Dez
+  if (month > 3 && month < 10) return true; // Sommerzeit in Apr, Mai, Jun, Jul, Aug, Sep
+  if (month == 3 && (hour + 24 * day) >= (1 + tzHours + 24 * (31 - (5 * year / 4 + 4) % 7)) || month == 10 && (hour + 24 * day) < (1 + tzHours + 24 * (31 - (5 * year / 4 + 1) % 7)))
+    return true;
+  else
+    return false;
 }
